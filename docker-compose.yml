@@ -1,9 +1,5 @@
 services:
   litellm:
-    build:
-      context: .
-      args:
-        target: runtime
     image: docker.litellm.ai/berriai/litellm:main-stable
     volumes:
       - /etc/dokploy/litellm/config.yaml:/app/config.yaml
@@ -17,19 +13,27 @@ services:
       LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY}
       UI_USERNAME: ${UI_USERNAME}
       UI_PASSWORD: ${UI_PASSWORD}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      MISTRAL_API_KEY: ${MISTRAL_API_KEY}
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
       OPENROUTER_SITE_URL: ${OPENROUTER_SITE_URL}
       OPENROUTER_APP_NAME: ${OPENROUTER_APP_NAME}
-      OPENROUTER_MANAGEMENT_KEY: ${OPENROUTER_MANAGEMENT_KEY}
+      NVIDIA_API_KEY: ${NVIDIA_API_KEY}
+      DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY}
       MINIMAX_API_KEY: ${MINIMAX_API_KEY}
       MINIMAX_GROUP_ID: ${MINIMAX_GROUP_ID}
-      MINIMAX_SK: ${MINIMAX_SK}
-      DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY}
-      GEMINI_API_KEY: ${GEMINI_API_KEY}
-      GROQ_API_KEY: ${GROQ_API_KEY}
+      CLOUDFLARE_API_KEY: ${CLOUDFLARE_API_KEY}
+      CLOUDFLARE_ACCOUNT_ID: ${CLOUDFLARE_ACCOUNT_ID}
       OLLAMA_API_BASE: ${OLLAMA_API_BASE}
+      GROQ_API_KEY: ${GROQ_API_KEY}
+      REDIS_URL: ${REDIS_URL}
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
       - dokploy-network
       - net_ia
@@ -40,7 +44,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
+      start_period: 60s
 
   db:
     image: postgres:16
@@ -57,10 +61,28 @@ services:
     healthcheck:
       test:
         - CMD-SHELL
-        - pg_isready -d litellm -U ${POSTGRES_USER}
-      interval: 1s
+        - pg_isready -d ${POSTGRES_DB} -U ${POSTGRES_USER}
+      interval: 5s
       timeout: 5s
       retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: always
+    container_name: litellm_redis
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    networks:
+      - net_ia
+    healthcheck:
+      test:
+        - CMD
+        - redis-cli
+        - ping
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
   prometheus:
     image: prom/prometheus
@@ -80,6 +102,8 @@ volumes:
     driver: local
   postgres_data:
     name: litellm_postgres_data
+  redis_data:
+    name: litellm_redis_data
 
 networks:
   dokploy-network:
