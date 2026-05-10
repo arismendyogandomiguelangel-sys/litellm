@@ -9,7 +9,6 @@ services:
       - "4000:4000"
     environment:
       DISABLE_SCHEMA_UPDATE: "true"
-      PROMETHEUS_METRICS: "True"
       DATABASE_URL: ${DATABASE_URL}
       STORE_MODEL_IN_DB: "True"
       LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY}
